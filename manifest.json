@@ -1,0 +1,11 @@
+{
+  "name": "MoodForUs",
+  "short_name": "MoodForUs",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f10",
+  "theme_color": "#0f0f10",
+  "icons": [
+    { "src": "https://www.gstatic.com/webp/gallery/1.jpg", "sizes": "192x192", "type": "image/jpeg" }
+  ]
+}
