@@ -1,1 +1,112 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MoodForUs</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0f0f10">
 
+  <style>
+    :root {
+      --bg:#0f0f10; --card:#17171a; --text:#f2f2f3; --muted:#b7b7bd;
+      --ok:#2bd68f; --err:#ff5b5b; --accent:#8a7dff;
+    }
+    body{font-family:-apple-system,system-ui,Segoe UI,Roboto,Arial; margin:16px; background:var(--bg); color:var(--text)}
+    .card{background:var(--card); border:1px solid #2a2a31; border-radius:14px; padding:12px; margin:12px 0}
+    h2,h3{margin:8px 0 10px}
+    label{display:block; margin-top:10px; color:var(--muted); font-size:13px}
+    input, textarea{width:100%; padding:10px; border-radius:12px; border:1px solid #30303a; background:#101013; color:var(--text); box-sizing:border-box}
+    .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+    .small{font-size:12px; color:var(--muted); white-space:pre-wrap}
+    .ok{color:var(--ok)} .err{color:var(--err)}
+    .hint{font-size:12px; color:var(--muted); margin-top:6px}
+
+    /* кнопки с анимацией/подсветкой */
+    .btn{
+      padding:10px 12px; border-radius:12px; border:1px solid #343444;
+      background:#111116; color:var(--text);
+      transition: transform .08s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease, opacity .12s ease;
+      user-select:none;
+    }
+    .btn:active{ transform: scale(0.98); }
+    .btn.primary{ border-color:#4a4a66; background:#151527; }
+    .btn.selected{
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(138,125,255,.18);
+      background: rgba(138,125,255,.10);
+    }
+    .btn.pill{ border-radius:999px; padding:9px 12px; }
+    .grid{display:flex; flex-wrap:wrap; gap:8px}
+  </style>
+
+  <!-- OneSignal Web SDK -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+</head>
+<body>
+  <h2>MoodForUs</h2>
+  <div class="small">
+    iPhone: сайт должен быть “На экран Домой” и открыт с иконки, чтобы включить пуши.
+  </div>
+
+  <div class="card">
+    <h3>0) Обязательная анкета</h3>
+    <div class="hint">Пока анкета не заполнена — отправка отчётов будет заблокирована.</div>
+
+    <label>Что нужно пользователю (общий комментарий)</label>
+    <textarea id="profileComment" rows="2" placeholder="Например: мне важно, чтобы меня не торопили и не давали советов сразу"></textarea>
+
+    <label>Подсказки по состояниям (автоматически подставляются в уведомление партнёру)</label>
+    <div id="tipsBox"></div>
+
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="saveProfile">Сохранить анкету</button>
+      <button class="btn" id="loadProfile">Загрузить</button>
+      <button class="btn" id="clearProfile">Удалить анкету</button>
+    </div>
+    <div id="profileStatus" class="small"></div>
+  </div>
+
+  <div class="card">
+    <h3>1) Профиль</h3>
+    <label>Твоё имя</label>
+    <input id="name" placeholder="Арина" />
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="saveName">Сохранить имя</button>
+      <button class="btn" id="enablePush">Включить уведомления</button>
+    </div>
+    <div id="pushStatus" class="small"></div>
+  </div>
+
+  <div class="card">
+    <h3>2) Связь (постоянный код пары)</h3>
+    <div class="hint">Один раз связались — код остаётся, повторно подключаться не нужно.</div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn primary" id="getCode">Показать/создать мой код</button>
+      <input id="pairCode" placeholder="Код партнёра" />
+      <button class="btn" id="joinCode">Подключиться по коду</button>
+    </div>
+    <div id="pairStatus" class="small"></div>
+  </div>
+
+  <div class="card">
+    <h3>3) Отметить состояние</h3>
+
+    <label>Состояние</label>
+    <div id="states" class="grid"></div>
+
+    <label style="margin-top:10px">Интенсивность: <span id="scaleVal">5</span>/10</label>
+    <input id="scale" type="range" min="1" max="10" value="5" />
+
+    <label>Комментарий к этому отчёту (опционально)</label>
+    <textarea id="senderComment" rows="2" placeholder="Например: сейчас мне важно, чтобы ты просто был рядом"></textarea>
+
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="sendMood">Отправить партнёру</button>
+    </div>
+    <div id="sendStatus" class="small"></div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
