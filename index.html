@@ -8,10 +8,7 @@
   <meta name="theme-color" content="#0f0f10">
 
   <style>
-    :root {
-      --bg:#0f0f10; --card:#17171a; --text:#f2f2f3; --muted:#b7b7bd;
-      --ok:#2bd68f; --err:#ff5b5b; --accent:#8a7dff;
-    }
+    :root { --bg:#0f0f10; --card:#17171a; --text:#f2f2f3; --muted:#b7b7bd; --ok:#2bd68f; --err:#ff5b5b; --accent:#8a7dff; }
     body{font-family:-apple-system,system-ui,Segoe UI,Roboto,Arial; margin:16px; background:var(--bg); color:var(--text)}
     .card{background:var(--card); border:1px solid #2a2a31; border-radius:14px; padding:12px; margin:12px 0}
     h2,h3{margin:8px 0 10px}
@@ -22,11 +19,10 @@
     .ok{color:var(--ok)} .err{color:var(--err)}
     .hint{font-size:12px; color:var(--muted); margin-top:6px}
 
-    /* кнопки с анимацией/подсветкой */
     .btn{
       padding:10px 12px; border-radius:12px; border:1px solid #343444;
       background:#111116; color:var(--text);
-      transition: transform .08s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease, opacity .12s ease;
+      transition: transform .08s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease;
       user-select:none;
     }
     .btn:active{ transform: scale(0.98); }
@@ -49,14 +45,16 @@
     iPhone: сайт должен быть “На экран Домой” и открыт с иконки, чтобы включить пуши.
   </div>
 
+  <div id="jsAlive" class="small err">JS не загрузился…</div>
+
   <div class="card">
     <h3>0) Обязательная анкета</h3>
     <div class="hint">Пока анкета не заполнена — отправка отчётов будет заблокирована.</div>
 
     <label>Что нужно пользователю (общий комментарий)</label>
-    <textarea id="profileComment" rows="2" placeholder="Например: мне важно, чтобы меня не торопили и не давали советов сразу"></textarea>
+    <textarea id="profileComment" rows="2"></textarea>
 
-    <label>Подсказки по состояниям (автоматически подставляются в уведомление партнёру)</label>
+    <label>Подсказки по состояниям</label>
     <div id="tipsBox"></div>
 
     <div class="row" style="margin-top:10px">
@@ -80,7 +78,7 @@
 
   <div class="card">
     <h3>2) Связь (постоянный код пары)</h3>
-    <div class="hint">Один раз связались — код остаётся, повторно подключаться не нужно.</div>
+    <div class="hint">Один раз связались — код остаётся.</div>
     <div class="row" style="margin-top:8px">
       <button class="btn primary" id="getCode">Показать/создать мой код</button>
       <input id="pairCode" placeholder="Код партнёра" />
@@ -99,14 +97,14 @@
     <input id="scale" type="range" min="1" max="10" value="5" />
 
     <label>Комментарий к этому отчёту (опционально)</label>
-    <textarea id="senderComment" rows="2" placeholder="Например: сейчас мне важно, чтобы ты просто был рядом"></textarea>
+    <textarea id="senderComment" rows="2"></textarea>
 
     <div class="row" style="margin-top:10px">
       <button class="btn primary" id="sendMood">Отправить партнёру</button>
     </div>
     <div id="sendStatus" class="small"></div>
   </div>
-<div id="jsAlive" class="small err">JS не загрузился…</div>
+
   <script src="/app.js"></script>
 </body>
 </html>
