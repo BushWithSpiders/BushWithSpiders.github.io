@@ -10,6 +10,7 @@
     if (b) { b.textContent = "JS REJECTION: " + String(e.reason); b.className = "small err"; }
   });
 })();
+
 const API_BASE = "https://aczcumjsybnvaygppedm.supabase.co/functions/v1/moodapi";
 const ONESIGNAL_APP_ID = "cdb677ec-6732-47d8-9452-483603d3264e";
 
@@ -42,21 +43,14 @@ async function api(action, body){
       body: JSON.stringify({ cid: cid(), ...body })
     });
 
-    const text = await res.text(); // читаем как текст всегда
+    const text = await res.text();
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = null; }
-
-    // если JSON — вернём его, иначе вернём диагностический объект
     if (data && typeof data === "object") return data;
 
-    return {
-      ok: false,
-      error: "non_json_response",
-      status: res.status,
-      raw: text?.slice(0, 800) || "(empty response)"
-    };
+    return { ok:false, error:"non_json_response", status:res.status, raw:(text||"").slice(0,800) };
   } catch (e) {
-    return { ok:false, error:"fetch_failed", details: String(e) };
+    return { ok:false, error:"fetch_failed", details:String(e) };
   }
 }
 
@@ -71,6 +65,7 @@ let selectedState = null;
 
 function renderStates(){
   const box = $("states");
+  if(!box) return;
   box.innerHTML = "";
   STATES.forEach(s=>{
     const b = makeBtn(s);
@@ -86,6 +81,7 @@ function renderStates(){
 
 function renderTipsInputs(){
   const tipsBox = $("tipsBox");
+  if(!tipsBox) return;
   tipsBox.innerHTML = "";
 
   STATES.forEach(st=>{
@@ -114,7 +110,8 @@ function renderTipsInputs(){
 function collectTips(){
   const tips = {};
   STATES.forEach(st=>{
-    const v = (document.getElementById(`tip_${st}`)?.value || "").trim();
+    const el = document.getElementById(`tip_${st}`);
+    const v = (el?.value || "").trim();
     tips[st] = { advice: v };
   });
   return tips;
@@ -122,46 +119,54 @@ function collectTips(){
 
 function fillTips(tips){
   STATES.forEach(st=>{
-    const v = tips?.[st]?.advice || "";
     const el = document.getElementById(`tip_${st}`);
-    if(el) el.value = v;
+    if (el) el.value = tips?.[st]?.advice || "";
   });
 }
 
 async function enablePush(){
-  setMsg("pushStatus","Запрашиваю уведомления…", true);
+  setMsg("pushStatus","1) init OneSignal…", true);
 
   if(!ONESIGNAL_APP_ID || ONESIGNAL_APP_ID.includes("PASTE_")){
-    setMsg("pushStatus","Не указан ONESIGNAL_APP_ID в app.js", false);
+    setMsg("pushStatus","Не указан ONESIGNAL_APP_ID", false);
     return;
   }
 
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  OneSignalDeferred.push(async function(OneSignal) {
-    await OneSignal.init({
-      appId: ONESIGNAL_APP_ID,
-      notifyButton: { enable: false },
-      serviceWorkerPath: "OneSignalSDKWorker.js",
-      serviceWorkerUpdaterPath: "OneSignalSDKUpdaterWorker.js",
-      serviceWorkerParam: { scope: "/" }
-    });
+  // Если SDK не загрузился/заблокирован — покажем это сразу
+  if (!window.OneSignalDeferred) window.OneSignalDeferred = [];
+  window.OneSignalDeferred.push(async function(OneSignal) {
+    try{
+      await OneSignal.init({
+        appId: ONESIGNAL_APP_ID,
+        notifyButton: { enable: false },
+        serviceWorkerPath: "OneSignalSDKWorker.js",
+        serviceWorkerUpdaterPath: "OneSignalSDKUpdaterWorker.js",
+        serviceWorkerParam: { scope: "/" }
+      });
 
-    const perm1 = await OneSignal.Notifications.permission;
-    let sid1 = await OneSignal.User.PushSubscription.id;
-    setMsg("pushStatus", `permission=${perm1}, subId=${sid1 || "(empty)"}`, perm1 === "granted" && !!sid1);
+      setMsg("pushStatus","2) init OK, checking permission…", true);
 
-    if(perm1 !== "granted"){
-      await OneSignal.Notifications.requestPermission();
+      const perm1 = await OneSignal.Notifications.permission;
+      const sid1 = await OneSignal.User.PushSubscription.id;
+      setMsg("pushStatus", `permission=${perm1}, subId=${sid1 || "(empty)"}`, perm1 === "granted" && !!sid1);
+
+      if(perm1 !== "granted"){
+        setMsg("pushStatus","3) requesting permission…", true);
+        await OneSignal.Notifications.requestPermission();
+      }
+
+      const perm2 = await OneSignal.Notifications.permission;
+      const sid2 = await OneSignal.User.PushSubscription.id;
+      setMsg("pushStatus", `4) permission=${perm2}, subId=${sid2 || "(empty)"}`, perm2 === "granted" && !!sid2);
+
+      if(!sid2) return;
+
+      const r = await api("register", { onesignalId: sid2 });
+      if (r.ok) setMsg("pushStatus","Уведомления включены ✅", true);
+      else setMsg("pushStatus",(r.error||"register error") + (r.details?("\n"+r.details):""), false);
+    }catch(e){
+      setMsg("pushStatus","OneSignal error: " + String(e), false);
     }
-
-    const perm2 = await OneSignal.Notifications.permission;
-    const sid2 = await OneSignal.User.PushSubscription.id;
-    setMsg("pushStatus", `after request: permission=${perm2}, subId=${sid2 || "(empty)"}`, perm2 === "granted" && !!sid2);
-
-    if(!sid2) return;
-
-    const r = await api("register", { onesignalId: sid2 });
-    setMsg("pushStatus", r.ok ? "Уведомления включены ✅" : (r.error || "Ошибка register"), !!r.ok);
   });
 }
 
@@ -180,88 +185,89 @@ async function requireProfileOrWarn(){
   return true;
 }
 
+function safeOnClick(id, fn){
+  const el = $(id);
+  if (el) el.onclick = fn;
+}
 
+async function boot(){
+  setMsg("sendStatus","Готово. Выбери состояние и отправь.", true);
 
   renderStates();
   renderTipsInputs();
 
-  $("scale").addEventListener("input", e => $("scaleVal").textContent = e.target.value);
+  const scaleEl = $("scale");
+  if (scaleEl) {
+    scaleEl.addEventListener("input", (e) => {
+      const sv = $("scaleVal");
+      if (sv) sv.textContent = e.target.value;
+    });
+  }
 
-  $("saveName").onclick = async ()=>{
-    const name = $("name").value.trim();
+  safeOnClick("saveName", async ()=>{
+    const name = ($("name")?.value || "").trim();
     const r = await api("setName", { name });
     setMsg("pairStatus", r.ok ? "Имя сохранено ✅" : (r.error||"Ошибка setName"), !!r.ok);
-  };
+  });
 
-  $("enablePush").onclick = enablePush;
+  safeOnClick("enablePush", enablePush);
 
-  $("getCode").onclick = async ()=>{
+  safeOnClick("getCode", async ()=>{
     const r = await api("getCode", {});
     if(r.ok){
       $("pairCode").value = r.code;
       setMsg("pairStatus", r.paired ? `Ваш код: ${r.code} (вы уже в паре ✅)` : `Ваш код: ${r.code} (отправь партнёру)`, true);
-    } else setMsg("pairStatus", r.error||"Ошибка getCode", false);
-  };
+    } else setMsg("pairStatus", (r.error||"Ошибка getCode") + (r.details?("\n"+r.details):""), false);
+  });
 
-  $("joinCode").onclick = async ()=>{
-    const code = $("pairCode").value.trim().toUpperCase();
+  safeOnClick("joinCode", async ()=>{
+    const code = ($("pairCode")?.value || "").trim().toUpperCase();
     const r = await api("joinCode", { code });
     setMsg("pairStatus", r.ok ? `Связано ✅ Код пары: ${r.code}` : (r.error||"Ошибка joinCode"), !!r.ok);
-  };
+  });
 
-  $("loadProfile").onclick = async ()=>{
+  safeOnClick("loadProfile", async ()=>{
     const r = await api("getProfile", {});
-    if(!r.ok) return setMsg("profileStatus", r.error||"Ошибка getProfile", false);
+    if(!r.ok) return setMsg("profileStatus", (r.error||"Ошибка getProfile") + (r.details?("\n"+r.details):""), false);
     $("profileComment").value = r.profile.comment || "";
     fillTips(r.profile.tips || {});
     setMsg("profileStatus","Анкета загружена ✅", true);
-  };
+  });
 
-$("saveProfile").onclick = async ()=>{
-  const comment = $("profileComment").value.trim();
-  const tips = collectTips();
-  const r = await api("setProfile", { comment, tips });
+  safeOnClick("saveProfile", async ()=>{
+    const comment = ($("profileComment")?.value || "").trim();
+    const tips = collectTips();
+    const r = await api("setProfile", { comment, tips });
+    if (r.ok) setMsg("profileStatus","Анкета сохранена ✅", true);
+    else setMsg("profileStatus",(r.error||"Ошибка setProfile") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
+  });
 
-  if (r.ok) {
-    setMsg("profileStatus", "Анкета сохранена ✅", true);
-  } else {
-    // покажем максимум информации
-    const parts = [];
-    if (r.error) parts.push(String(r.error));
-    if (r.details) parts.push(String(r.details));
-    if (r.status) parts.push("HTTP " + String(r.status));
-    if (r.raw) parts.push("RAW: " + String(r.raw));
-    setMsg("profileStatus", parts.join("\n"), false);
-  }
-};
-  $("clearProfile").onclick = async ()=>{
+  safeOnClick("clearProfile", async ()=>{
     const r = await api("clearProfile", {});
     if(r.ok){
       $("profileComment").value = "";
       fillTips({});
       setMsg("profileStatus","Анкета удалена ✅", true);
-    } else setMsg("profileStatus", r.error||"Ошибка clearProfile", false);
-  };
+    } else setMsg("profileStatus", (r.error||"Ошибка clearProfile") + (r.details?("\n"+r.details):""), false);
+  });
 
-  $("sendMood").onclick = async ()=>{
+  safeOnClick("sendMood", async ()=>{
     if(!selectedState) return setMsg("sendStatus","Выбери состояние", false);
 
     const okProfile = await requireProfileOrWarn();
     if(!okProfile) return;
 
-    const scale = Number($("scale").value);
-    const senderComment = $("senderComment").value.trim();
+    const scale = Number($("scale")?.value || 5);
+    const senderComment = ($("senderComment")?.value || "").trim();
 
     const r = await api("sendMood", { state: selectedState, scale, senderComment });
     if(r.ok) setMsg("sendStatus","Отправлено партнёру ✅", true);
-    else {
-      if(r.error === "profile_required") setMsg("sendStatus","Нужно заполнить анкету (вверху) — без неё отправка запрещена.", false);
-      else setMsg("sendStatus", r.error || "Ошибка sendMood", false);
-    }
-  };
+    else setMsg("sendStatus", (r.error||"Ошибка sendMood") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
+  });
 
-  // ✅ анкета должна подгружаться при входе
-  $("loadProfile").click();
+  // автозагрузка анкеты при входе
+  const lp = $("loadProfile");
+  if (lp) lp.click();
 }
 
 document.addEventListener("DOMContentLoaded", boot);
