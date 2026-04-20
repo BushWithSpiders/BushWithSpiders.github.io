@@ -23,12 +23,29 @@ function cid(){
 }
 
 async function api(action, body){
-  const res = await fetch(`${API_BASE}/${action}`, {
-    method:"POST",
-    headers:{ "content-type":"application/json" },
-    body: JSON.stringify({ cid: cid(), ...body })
-  });
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/${action}`, {
+      method:"POST",
+      headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ cid: cid(), ...body })
+    });
+
+    const text = await res.text(); // читаем как текст всегда
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+
+    // если JSON — вернём его, иначе вернём диагностический объект
+    if (data && typeof data === "object") return data;
+
+    return {
+      ok: false,
+      error: "non_json_response",
+      status: res.status,
+      raw: text?.slice(0, 800) || "(empty response)"
+    };
+  } catch (e) {
+    return { ok:false, error:"fetch_failed", details: String(e) };
+  }
 }
 
 function makeBtn(text){
@@ -191,7 +208,7 @@ async function boot(){
     setMsg("profileStatus","Анкета загружена ✅", true);
   };
 
- $("saveProfile").onclick = async ()=>{
+$("saveProfile").onclick = async ()=>{
   const comment = $("profileComment").value.trim();
   const tips = collectTips();
   const r = await api("setProfile", { comment, tips });
@@ -199,8 +216,13 @@ async function boot(){
   if (r.ok) {
     setMsg("profileStatus", "Анкета сохранена ✅", true);
   } else {
-    const extra = r.details ? `\n${r.details}` : "";
-    setMsg("profileStatus", (r.error || "Ошибка setProfile") + extra, false);
+    // покажем максимум информации
+    const parts = [];
+    if (r.error) parts.push(String(r.error));
+    if (r.details) parts.push(String(r.details));
+    if (r.status) parts.push("HTTP " + String(r.status));
+    if (r.raw) parts.push("RAW: " + String(r.raw));
+    setMsg("profileStatus", parts.join("\n"), false);
   }
 };
   $("clearProfile").onclick = async ()=>{
