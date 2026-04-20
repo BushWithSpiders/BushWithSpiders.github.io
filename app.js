@@ -191,13 +191,18 @@ async function boot(){
     setMsg("profileStatus","Анкета загружена ✅", true);
   };
 
-  $("saveProfile").onclick = async ()=>{
-    const comment = $("profileComment").value.trim();
-    const tips = collectTips();
-    const r = await api("setProfile", { comment, tips });
-    setMsg("profileStatus", r.ok ? "Анкета сохранена ✅" : (r.error||"Ошибка setProfile"), !!r.ok);
-  };
+ $("saveProfile").onclick = async ()=>{
+  const comment = $("profileComment").value.trim();
+  const tips = collectTips();
+  const r = await api("setProfile", { comment, tips });
 
+  if (r.ok) {
+    setMsg("profileStatus", "Анкета сохранена ✅", true);
+  } else {
+    const extra = r.details ? `\n${r.details}` : "";
+    setMsg("profileStatus", (r.error || "Ошибка setProfile") + extra, false);
+  }
+};
   $("clearProfile").onclick = async ()=>{
     const r = await api("clearProfile", {});
     if(r.ok){
