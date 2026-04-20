@@ -1,4 +1,4 @@
-const API_BASE = "https://aczcumjsybnvaygppedm.functions.supabase.co/moodapi";
+const API_BASE = "https://aczcumjsybnvaygppedm.supabase.co/functions/v1/moodapi";
 const ONESIGNAL_APP_ID = "cdb677ec-6732-47d8-9452-483603d3264e";
 
 const STATES = ["тревога","грусть","злость","недовольство","страх","спокойствие","радость","стыд","нейтрально","никак"];
