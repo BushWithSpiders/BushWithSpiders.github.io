@@ -1,3 +1,15 @@
+(() => {
+  const box = document.getElementById("jsAlive");
+  if (box) { box.textContent = "JS загрузился ✅"; box.className = "small ok"; }
+  window.addEventListener("error", (e) => {
+    const b = document.getElementById("jsAlive");
+    if (b) { b.textContent = "JS ERROR: " + e.message; b.className = "small err"; }
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const b = document.getElementById("jsAlive");
+    if (b) { b.textContent = "JS REJECTION: " + String(e.reason); b.className = "small err"; }
+  });
+})();
 const API_BASE = "https://aczcumjsybnvaygppedm.supabase.co/functions/v1/moodapi";
 const ONESIGNAL_APP_ID = "cdb677ec-6732-47d8-9452-483603d3264e";
 
