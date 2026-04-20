@@ -168,10 +168,7 @@ async function requireProfileOrWarn(){
   return true;
 }
 
-async function boot(){
-  if("serviceWorker" in navigator){
-    navigator.serviceWorker.register("/sw.js").catch(()=>{});
-  }
+
 
   renderStates();
   renderTipsInputs();
