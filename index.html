@@ -6,7 +6,6 @@
   <title>MoodForUs</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0f0f10">
-
   <style>
     :root { --bg:#0f0f10; --card:#17171a; --text:#f2f2f3; --muted:#b7b7bd; --ok:#2bd68f; --err:#ff5b5b; --accent:#8a7dff; }
     body{font-family:-apple-system,system-ui,Segoe UI,Roboto,Arial; margin:16px; background:var(--bg); color:var(--text)}
@@ -18,95 +17,109 @@
     .small{font-size:12px; color:var(--muted); white-space:pre-wrap}
     .ok{color:var(--ok)} .err{color:var(--err)}
     .hint{font-size:12px; color:var(--muted); margin-top:6px}
-
-    .btn{
-      padding:10px 12px; border-radius:12px; border:1px solid #343444;
-      background:#111116; color:var(--text);
-      transition: transform .08s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease;
-      user-select:none;
-    }
+    .btn{padding:10px 12px; border-radius:12px; border:1px solid #343444; background:#111116; color:var(--text);
+      transition: transform .08s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease; user-select:none;}
     .btn:active{ transform: scale(0.98); }
     .btn.primary{ border-color:#4a4a66; background:#151527; }
-    .btn.danger{ border-color:#6a2a2a; background:#231212; }
-    .btn.selected{
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(138,125,255,.18);
-      background: rgba(138,125,255,.10);
-    }
+    .btn.selected{ border-color: var(--accent); box-shadow: 0 0 0 3px rgba(138,125,255,.18); background: rgba(138,125,255,.10); }
     .btn.pill{ border-radius:999px; padding:9px 12px; }
     .grid{display:flex; flex-wrap:wrap; gap:8px}
+    .tabbar{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0}
+    .hidden{display:none}
+    .historyItem{border:1px solid #2a2a31; border-radius:12px; padding:10px; margin:8px 0; background:#121217}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
   </style>
-
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 </head>
 <body>
   <h2>MoodForUs</h2>
-  <div class="small">iPhone: сайт должен быть “На экран Домой” и открыт с иконки, чтобы включить пуши.</div>
+  <div class="small">iPhone: открывай с иконки “На экран Домой”, чтобы пуши работали стабильно.</div>
   <div id="jsAlive" class="small err">JS не загрузился…</div>
 
-  <div class="card">
-    <h3>0) Обязательная анкета</h3>
-    <div class="hint">Пока анкета не заполнена — отправка отчётов будет заблокирована.</div>
-
-    <label>Что нужно пользователю (общий комментарий)</label>
-    <textarea id="profileComment" rows="2"></textarea>
-
-    <label>Подсказки по состояниям</label>
-    <div id="tipsBox"></div>
-
-    <div class="row" style="margin-top:10px">
-      <button class="btn primary" id="saveProfile">Сохранить анкету</button>
-      <button class="btn" id="loadProfile">Загрузить</button>
-      <button class="btn" id="clearProfile">Удалить анкету</button>
-    </div>
-    <div id="profileStatus" class="small"></div>
+  <div class="tabbar">
+    <button class="btn pill selected" id="tabMeBtn">Я</button>
+    <button class="btn pill" id="tabPartnerBtn">Партнёр</button>
   </div>
 
-  <div class="card">
-    <h3>1) Профиль</h3>
-    <label>Твоё имя</label>
-    <input id="name" placeholder="Арина" />
-    <div class="row" style="margin-top:10px">
-      <button class="btn primary" id="saveName">Сохранить имя</button>
-      <button class="btn" id="enablePush">Включить уведомления</button>
+  <!-- TAB: ME -->
+  <div id="tabMe">
+    <div class="card">
+      <h3>Профиль</h3>
+      <label>Твоё имя</label>
+      <input id="name" placeholder="Арина" />
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="saveName">Сохранить имя</button>
+        <button class="btn" id="enablePush">Включить уведомления</button>
+      </div>
+      <div id="pushStatus" class="small"></div>
     </div>
-    <div id="pushStatus" class="small"></div>
+
+    <div class="card">
+      <h3>Анкета</h3>
+      <div class="hint">Подсказки партнёру берутся отсюда автоматически.</div>
+      <label>Что нужно пользователю (общий комментарий)</label>
+      <textarea id="profileComment" rows="2"></textarea>
+      <label>Подсказки по состояниям</label>
+      <div id="tipsBox"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="saveProfile">Сохранить анкету</button>
+        <button class="btn" id="loadProfile">Загрузить</button>
+        <button class="btn" id="clearProfile">Удалить анкету</button>
+      </div>
+      <div id="profileStatus" class="small"></div>
+    </div>
+
+    <div class="card">
+      <h3>Пара и код</h3>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="refreshStatus">Обновить статус</button>
+        <button class="btn primary" id="getCode">Показать/создать код</button>
+        <button class="btn" id="newCode">Новый код</button>
+        <button class="btn" id="unlink">Сбросить связь</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="pairCode" placeholder="Код партнёра" />
+        <button class="btn" id="joinCode">Подключиться по коду</button>
+      </div>
+      <div id="pairStatus" class="small"></div>
+    </div>
+
+    <div class="card">
+      <h3>Отметить состояние</h3>
+      <label>Состояние</label>
+      <div id="states" class="grid"></div>
+      <label style="margin-top:10px">Интенсивность: <span id="scaleVal">5</span>/10</label>
+      <input id="scale" type="range" min="1" max="10" value="5" />
+      <label>Комментарий к этому отчёту (опционально)</label>
+      <textarea id="senderComment" rows="2"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="sendMood">Отправить партнёру</button>
+      </div>
+      <div id="sendStatus" class="small"></div>
+    </div>
   </div>
 
-  <div class="card">
-    <h3>2) Пара и код</h3>
-    <div class="hint">Если запутались — “Сбросить связь” → “Новый код” → партнёр подключается заново.</div>
-
-    <div class="row" style="margin-top:8px">
-      <button class="btn" id="refreshStatus">Обновить статус</button>
-      <button class="btn primary" id="getCode">Показать/создать код</button>
-      <button class="btn" id="newCode">Новый код</button>
-      <button class="btn danger" id="unlink">Сбросить связь</button>
+  <!-- TAB: PARTNER -->
+  <div id="tabPartner" class="hidden">
+    <div class="card">
+      <h3>Состояние партнёра</h3>
+      <div id="partnerCard" class="small">Нет данных. Нажми “Обновить”.</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="refreshPartner">Обновить</button>
+        <button class="btn" id="openAllHistory">Показать историю</button>
+      </div>
     </div>
 
-    <div class="row" style="margin-top:8px">
-      <input id="pairCode" placeholder="Код партнёра" />
-      <button class="btn" id="joinCode">Подключиться по коду</button>
+    <div class="card">
+      <h3>История состояний</h3>
+      <div class="row">
+        <button class="btn pill selected" id="histAll">Все</button>
+        <button class="btn pill" id="histMe">Мои</button>
+        <button class="btn pill" id="histPartner">Партнёра</button>
+      </div>
+      <div id="historyList"></div>
+      <div id="historyStatus" class="small"></div>
     </div>
-
-    <div id="pairStatus" class="small"></div>
-  </div>
-
-  <div class="card">
-    <h3>3) Отметить состояние</h3>
-    <label>Состояние</label>
-    <div id="states" class="grid"></div>
-
-    <label style="margin-top:10px">Интенсивность: <span id="scaleVal">5</span>/10</label>
-    <input id="scale" type="range" min="1" max="10" value="5" />
-
-    <label>Комментарий к этому отчёту (опционально)</label>
-    <textarea id="senderComment" rows="2"></textarea>
-
-    <div class="row" style="margin-top:10px">
-      <button class="btn primary" id="sendMood">Отправить партнёру</button>
-    </div>
-    <div id="sendStatus" class="small"></div>
   </div>
 
   <script src="/app.js"></script>
