@@ -27,6 +27,7 @@
     }
     .btn:active{ transform: scale(0.98); }
     .btn.primary{ border-color:#4a4a66; background:#151527; }
+    .btn.danger{ border-color:#6a2a2a; background:#231212; }
     .btn.selected{
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(138,125,255,.18);
@@ -36,7 +37,6 @@
     .grid{display:flex; flex-wrap:wrap; gap:8px}
   </style>
 
-  <!-- OneSignal Web SDK -->
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 </head>
 <body>
@@ -52,7 +52,7 @@
     <div class="hint">Пока анкета не заполнена — отправка отчётов будет заблокирована.</div>
 
     <label>Что нужно пользователю (общий комментарий)</label>
-    <textarea id="profileComment" rows="2" placeholder="Например: говори со мной мягко, не торопи, не давай советов сразу"></textarea>
+    <textarea id="profileComment" rows="2"></textarea>
 
     <label>Подсказки по состояниям</label>
     <div id="tipsBox"></div>
@@ -77,13 +77,22 @@
   </div>
 
   <div class="card">
-    <h3>2) Связь (постоянный код пары)</h3>
-    <div class="hint">Один раз связались — код остаётся.</div>
+    <h3>2) Связь (управление кодом пары)</h3>
+    <div class="hint">
+      Если вы запутались — нажми “Сбросить связь” и создай новый код. Партнёру надо будет подключиться снова.
+    </div>
+
     <div class="row" style="margin-top:8px">
       <button class="btn primary" id="getCode">Показать/создать мой код</button>
+      <button class="btn" id="newCode">Создать новый код</button>
+      <button class="btn danger" id="unlink">Сбросить связь</button>
+    </div>
+
+    <div class="row" style="margin-top:8px">
       <input id="pairCode" placeholder="Код партнёра" />
       <button class="btn" id="joinCode">Подключиться по коду</button>
     </div>
+
     <div id="pairStatus" class="small"></div>
   </div>
 
@@ -97,7 +106,7 @@
     <input id="scale" type="range" min="1" max="10" value="5" />
 
     <label>Комментарий к этому отчёту (опционально)</label>
-    <textarea id="senderComment" rows="2" placeholder="Например: сейчас мне важна тишина и объятие"></textarea>
+    <textarea id="senderComment" rows="2"></textarea>
 
     <div class="row" style="margin-top:10px">
       <button class="btn primary" id="sendMood">Отправить партнёру</button>
