@@ -41,10 +41,7 @@
 </head>
 <body>
   <h2>MoodForUs</h2>
-  <div class="small">
-    iPhone: сайт должен быть “На экран Домой” и открыт с иконки, чтобы включить пуши.
-  </div>
-
+  <div class="small">iPhone: сайт должен быть “На экран Домой” и открыт с иконки, чтобы включить пуши.</div>
   <div id="jsAlive" class="small err">JS не загрузился…</div>
 
   <div class="card">
@@ -77,14 +74,13 @@
   </div>
 
   <div class="card">
-    <h3>2) Связь (управление кодом пары)</h3>
-    <div class="hint">
-      Если вы запутались — нажми “Сбросить связь” и создай новый код. Партнёру надо будет подключиться снова.
-    </div>
+    <h3>2) Пара и код</h3>
+    <div class="hint">Если запутались — “Сбросить связь” → “Новый код” → партнёр подключается заново.</div>
 
     <div class="row" style="margin-top:8px">
-      <button class="btn primary" id="getCode">Показать/создать мой код</button>
-      <button class="btn" id="newCode">Создать новый код</button>
+      <button class="btn" id="refreshStatus">Обновить статус</button>
+      <button class="btn primary" id="getCode">Показать/создать код</button>
+      <button class="btn" id="newCode">Новый код</button>
       <button class="btn danger" id="unlink">Сбросить связь</button>
     </div>
 
@@ -98,7 +94,6 @@
 
   <div class="card">
     <h3>3) Отметить состояние</h3>
-
     <label>Состояние</label>
     <div id="states" class="grid"></div>
 
