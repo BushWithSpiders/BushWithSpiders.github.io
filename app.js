@@ -37,6 +37,15 @@ function cid(){
   return v;
 }
 
+// ---- persist name locally ----
+const LS_NAME_KEY = "moodforus_name";
+function loadLocalName(){
+  return localStorage.getItem(LS_NAME_KEY) || "";
+}
+function saveLocalName(name){
+  localStorage.setItem(LS_NAME_KEY, name);
+}
+
 async function api(action, body){
   try {
     const res = await fetch(`${API_BASE}/${action}`, {
@@ -192,6 +201,23 @@ async function enablePush(){
   }
 }
 
+async function refreshStatus(){
+  const r = await api("status", {});
+  if(!r.ok) return setMsg("pairStatus",(r.error||"status error") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
+
+  const lines = [];
+  lines.push(`CID: ${r.cid}`);
+  lines.push(`Имя: ${r.name || "—"}`);
+  lines.push(`Пуши на этом устройстве: ${r.push_enabled ? "✅" : "❌ (нажми “Включить уведомления”)"} `);
+  lines.push(`Связь: ${r.paired ? "✅" : "❌ (нужно подключиться по коду)"}`);
+  lines.push(`Код пары: ${r.code || "—"}`);
+  if (r.paired) {
+    lines.push(`Пуши у партнёра: ${r.partner_push_enabled ? "✅" : "❌ (партнёру надо нажать “Включить уведомления”)"} `);
+    lines.push(`Имя партнёра: ${r.partner_name || "—"}`);
+  }
+  setMsg("pairStatus", lines.join("\n"), true);
+}
+
 async function requireProfileOrWarn(){
   const r = await api("getProfile", {});
   if(!r.ok) return false;
@@ -210,6 +236,10 @@ async function requireProfileOrWarn(){
 async function boot(){
   setMsg("sendStatus","Готово. Выбери состояние и отправь.", true);
 
+  // restore name from localStorage
+  const nameEl = $("name");
+  if (nameEl) nameEl.value = loadLocalName();
+
   renderStates();
   renderTipsInputs();
 
@@ -223,18 +253,28 @@ async function boot(){
 
   safeOnClick("saveName", async ()=>{
     const name = ($("name")?.value || "").trim();
+    if(!name) return setMsg("pairStatus","Имя пустое", false);
+
+    saveLocalName(name);
     const r = await api("setName", { name });
     setMsg("pairStatus", r.ok ? "Имя сохранено ✅" : (r.error||"Ошибка setName"), !!r.ok);
+    await refreshStatus();
   });
 
-  safeOnClick("enablePush", enablePush);
+  safeOnClick("enablePush", async ()=>{
+    await enablePush();
+    await refreshStatus();
+  });
 
-  // CODE MANAGEMENT
+  // pair management
+  safeOnClick("refreshStatus", refreshStatus);
+
   safeOnClick("getCode", async ()=>{
     const r = await api("getCode", {});
     if(r.ok){
       $("pairCode").value = r.code;
-      setMsg("pairStatus", r.paired ? `Ваш код: ${r.code} (вы уже в паре ✅)` : `Ваш код: ${r.code} (отправь партнёру)`, true);
+      setMsg("pairStatus", r.paired ? `Ваш код: ${r.code} (вы уже в паре ✅)` : `Ваш код: ${r.code}\nОтправь партнёру и пусть он нажмёт “Подключиться по коду”.`, true);
+      await refreshStatus();
     } else setMsg("pairStatus", (r.error||"Ошибка getCode") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
   });
 
@@ -243,13 +283,15 @@ async function boot(){
     if(r.ok){
       $("pairCode").value = r.code;
       setMsg("pairStatus", `Новый код создан: ${r.code}\nПартнёру нужно подключиться заново.`, true);
+      await refreshStatus();
     } else setMsg("pairStatus", (r.error||"Ошибка newCode") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
   });
 
   safeOnClick("unlink", async ()=>{
     const r = await api("unlink", {});
     if(r.ok){
-      setMsg("pairStatus", r.unlinked ? "Связь удалена ✅ Теперь создай новый код." : "Связи не было (ok).", true);
+      setMsg("pairStatus", r.unlinked ? "Связь удалена ✅ Теперь создай новый код." : "Связи не было.", true);
+      await refreshStatus();
     } else setMsg("pairStatus", (r.error||"Ошибка unlink") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
   });
 
@@ -257,9 +299,10 @@ async function boot(){
     const code = ($("pairCode")?.value || "").trim().toUpperCase();
     const r = await api("joinCode", { code });
     setMsg("pairStatus", r.ok ? `Связано ✅ Код пары: ${r.code}` : (r.error||"Ошибка joinCode"), !!r.ok);
+    await refreshStatus();
   });
 
-  // PROFILE
+  // profile
   safeOnClick("loadProfile", async ()=>{
     const r = await api("getProfile", {});
     if(!r.ok) return setMsg("profileStatus", (r.error||"Ошибка getProfile") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
@@ -285,9 +328,17 @@ async function boot(){
     } else setMsg("profileStatus", (r.error||"Ошибка clearProfile") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
   });
 
-  // SEND MOOD
+  // send mood
   safeOnClick("sendMood", async ()=>{
     if(!selectedState) return setMsg("sendStatus","Выбери состояние", false);
+
+    // helpful status before sending
+    const st = await api("status", {});
+    if (st.ok) {
+      if (!st.paired) return setMsg("sendStatus","Вы не в паре. Нажми “Показать/создать код” и подключите партнёра.", false);
+      if (!st.partner_push_enabled) return setMsg("sendStatus","У партнёра не включены уведомления. Пусть нажмёт “Включить уведомления”.", false);
+      if (!st.push_enabled) return setMsg("sendStatus","На этом устройстве не включены уведомления. Нажми “Включить уведомления”.", false);
+    }
 
     const okProfile = await requireProfileOrWarn();
     if(!okProfile) return;
@@ -300,9 +351,10 @@ async function boot(){
     else setMsg("sendStatus", (r.error||"Ошибка sendMood") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
   });
 
-  // auto-load profile
+  // auto-load profile + status
   const lp = $("loadProfile");
   if (lp) lp.click();
+  await refreshStatus();
 }
 
 document.addEventListener("DOMContentLoaded", boot);
