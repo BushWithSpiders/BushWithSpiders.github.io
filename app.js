@@ -23,12 +23,14 @@ function setMsg(id, text, ok=true){
   el.textContent = text;
   el.className = "small " + (ok ? "ok" : "err");
 }
+
 function uuid(){
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c=>{
     const r = Math.random()*16|0, v = c==="x"?r:(r&0x3|0x8);
     return v.toString(16);
   });
 }
+
 function cid(){
   let v = localStorage.getItem("cid");
   if(!v){ v = uuid(); localStorage.setItem("cid", v); }
@@ -124,50 +126,77 @@ function fillTips(tips){
   });
 }
 
-async function enablePush(){
-  setMsg("pushStatus","1) init OneSignal…", true);
+function safeOnClick(id, fn){
+  const el = $(id);
+  if (el) el.onclick = fn;
+}
 
-  if(!ONESIGNAL_APP_ID || ONESIGNAL_APP_ID.includes("PASTE_")){
-    setMsg("pushStatus","Не указан ONESIGNAL_APP_ID", false);
-    return;
-  }
+/* -------- OneSignal init ONCE -------- */
+let __osInitPromise = null;
 
-  // Если SDK не загрузился/заблокирован — покажем это сразу
-  if (!window.OneSignalDeferred) window.OneSignalDeferred = [];
-  window.OneSignalDeferred.push(async function(OneSignal) {
-    try{
-      await OneSignal.init({
-        appId: ONESIGNAL_APP_ID,
-        notifyButton: { enable: false },
-        serviceWorkerPath: "OneSignalSDKWorker.js",
-        serviceWorkerUpdaterPath: "OneSignalSDKUpdaterWorker.js",
-        serviceWorkerParam: { scope: "/" }
-      });
+function oneSignalInitOnce(){
+  if (__osInitPromise) return __osInitPromise;
 
-      setMsg("pushStatus","2) init OK, checking permission…", true);
+  __osInitPromise = new Promise((resolve, reject) => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      try{
+        // если уже инициализировано — не делаем init второй раз
+        if (OneSignal?.__isInitialized) { resolve(OneSignal); return; }
 
-      const perm1 = await OneSignal.Notifications.permission;
-      const sid1 = await OneSignal.User.PushSubscription.id;
-      setMsg("pushStatus", `permission=${perm1}, subId=${sid1 || "(empty)"}`, perm1 === "granted" && !!sid1);
+        await OneSignal.init({
+          appId: ONESIGNAL_APP_ID,
+          notifyButton: { enable: false },
+          serviceWorkerPath: "OneSignalSDKWorker.js",
+          serviceWorkerUpdaterPath: "OneSignalSDKUpdaterWorker.js",
+          serviceWorkerParam: { scope: "/" }
+        });
 
-      if(perm1 !== "granted"){
-        setMsg("pushStatus","3) requesting permission…", true);
-        await OneSignal.Notifications.requestPermission();
+        OneSignal.__isInitialized = true;
+        resolve(OneSignal);
+      }catch(e){
+        reject(e);
       }
-
-      const perm2 = await OneSignal.Notifications.permission;
-      const sid2 = await OneSignal.User.PushSubscription.id;
-      setMsg("pushStatus", `4) permission=${perm2}, subId=${sid2 || "(empty)"}`, perm2 === "granted" && !!sid2);
-
-      if(!sid2) return;
-
-      const r = await api("register", { onesignalId: sid2 });
-      if (r.ok) setMsg("pushStatus","Уведомления включены ✅", true);
-      else setMsg("pushStatus",(r.error||"register error") + (r.details?("\n"+r.details):""), false);
-    }catch(e){
-      setMsg("pushStatus","OneSignal error: " + String(e), false);
-    }
+    });
   });
+
+  return __osInitPromise;
+}
+
+async function enablePush(){
+  try{
+    setMsg("pushStatus","1) initOnce…", true);
+
+    if(!ONESIGNAL_APP_ID) {
+      setMsg("pushStatus","ONESIGNAL_APP_ID пустой", false);
+      return;
+    }
+
+    const OneSignal = await oneSignalInitOnce();
+    setMsg("pushStatus","2) init OK, checking permission…", true);
+
+    const perm1 = await OneSignal.Notifications.permission;
+    const sid1 = await OneSignal.User.PushSubscription.id;
+    setMsg("pushStatus", `permission=${perm1}, subId=${sid1 || "(empty)"}`, perm1 === "granted" && !!sid1);
+
+    if(perm1 !== "granted"){
+      setMsg("pushStatus","3) requesting permission…", true);
+      await OneSignal.Notifications.requestPermission();
+    }
+
+    const perm2 = await OneSignal.Notifications.permission;
+    const sid2 = await OneSignal.User.PushSubscription.id;
+    setMsg("pushStatus", `4) permission=${perm2}, subId=${sid2 || "(empty)"}`, perm2 === "granted" && !!sid2);
+
+    if(!sid2) return;
+
+    const r = await api("register", { onesignalId: sid2 });
+    if (r.ok) setMsg("pushStatus","Уведомления включены ✅", true);
+    else setMsg("pushStatus",(r.error||"register error") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
+
+  }catch(e){
+    setMsg("pushStatus","OneSignal error: " + String(e), false);
+  }
 }
 
 async function requireProfileOrWarn(){
@@ -183,11 +212,6 @@ async function requireProfileOrWarn(){
     return false;
   }
   return true;
-}
-
-function safeOnClick(id, fn){
-  const el = $(id);
-  if (el) el.onclick = fn;
 }
 
 async function boot(){
@@ -217,7 +241,7 @@ async function boot(){
     if(r.ok){
       $("pairCode").value = r.code;
       setMsg("pairStatus", r.paired ? `Ваш код: ${r.code} (вы уже в паре ✅)` : `Ваш код: ${r.code} (отправь партнёру)`, true);
-    } else setMsg("pairStatus", (r.error||"Ошибка getCode") + (r.details?("\n"+r.details):""), false);
+    } else setMsg("pairStatus", (r.error||"Ошибка getCode") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
   });
 
   safeOnClick("joinCode", async ()=>{
@@ -228,7 +252,7 @@ async function boot(){
 
   safeOnClick("loadProfile", async ()=>{
     const r = await api("getProfile", {});
-    if(!r.ok) return setMsg("profileStatus", (r.error||"Ошибка getProfile") + (r.details?("\n"+r.details):""), false);
+    if(!r.ok) return setMsg("profileStatus", (r.error||"Ошибка getProfile") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
     $("profileComment").value = r.profile.comment || "";
     fillTips(r.profile.tips || {});
     setMsg("profileStatus","Анкета загружена ✅", true);
@@ -248,7 +272,7 @@ async function boot(){
       $("profileComment").value = "";
       fillTips({});
       setMsg("profileStatus","Анкета удалена ✅", true);
-    } else setMsg("profileStatus", (r.error||"Ошибка clearProfile") + (r.details?("\n"+r.details):""), false);
+    } else setMsg("profileStatus", (r.error||"Ошибка clearProfile") + (r.details?("\n"+r.details):"") + (r.raw?("\nRAW: "+r.raw):""), false);
   });
 
   safeOnClick("sendMood", async ()=>{
